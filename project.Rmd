@@ -5,18 +5,133 @@ date: "December 25, 2015"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+This report describes the analysis done to predict correct exercise technique based on the data set: http://groupware.les.inf.puc-rio.br/har.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r}
-summary(cars)
-```
-
-You can also embed plots, for example:
-
+First load libraries:
 ```{r, echo=FALSE}
-plot(cars)
+library(caret)
+library(randomForest)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Load the training and testing data:
+```{r, cache=TRUE}
+training = read.csv(url("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"),header=TRUE,stringsAsFactors=FALSE)
+testing = read.csv(url("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"),header=TRUE,stringsAsFactors=FALSE)
+```
+
+For cross validation I reserved 25% of the training samples to evaluate the accuracy of the model.
+Partition the training data set in two sets, one for train and one for evaluation:
+```{r, cache=TRUE}
+inTrain <- createDataPartition(y=training$classe,p=0.75,list=FALSE)
+ptraining1 <- training[inTrain,]
+ptesting1 <- training[-inTrain,]
+
+```
+To make the run time of the predictor reasonable I prunned the data by
+removing all columns from the partitions that are:  
+
+* associated with user name or time. 
+* not in the testing set.  
+* have NA in every row.  
+```{r, cache=TRUE}
+ptraining <- subset(ptraining1, select=-c(user_name,X,raw_timestamp_part_1,raw_timestamp_part_2,cvtd_timestamp,new_window,num_window,
+                                       kurtosis_roll_belt,
+                                       kurtosis_picth_belt,
+                                       kurtosis_yaw_belt,
+                                       skewness_roll_belt,
+                                       skewness_roll_belt.1,
+                                       skewness_yaw_belt,
+                                       max_yaw_belt,
+                                       min_yaw_belt,
+                                       amplitude_yaw_belt,
+                                       kurtosis_roll_arm,
+                                       kurtosis_picth_arm,
+                                       kurtosis_yaw_arm,
+                                       skewness_roll_arm,
+                                       skewness_pitch_arm,
+                                       skewness_yaw_arm,
+                                       kurtosis_roll_dumbbell,
+                                       kurtosis_picth_dumbbell,
+                                       kurtosis_yaw_dumbbell,
+                                       skewness_roll_dumbbell,
+                                       skewness_pitch_dumbbell,
+                                       skewness_yaw_dumbbell,
+                                       max_yaw_dumbbell,
+                                       min_yaw_dumbbell,
+                                       amplitude_yaw_dumbbell,
+                                       kurtosis_roll_forearm,
+                                       kurtosis_picth_forearm,
+                                       kurtosis_roll_forearm,
+                                       kurtosis_yaw_forearm,
+                                       skewness_roll_forearm,
+                                       skewness_pitch_forearm,
+                                       skewness_yaw_forearm,
+                                       max_yaw_forearm,
+                                       min_yaw_forearm,
+                                       amplitude_yaw_forearm
+                                       ))
+ptesting <- subset(ptesting1, select=-c(user_name,X,raw_timestamp_part_1,raw_timestamp_part_2,cvtd_timestamp,new_window,num_window,
+                                       kurtosis_roll_belt,
+                                       kurtosis_picth_belt,
+                                       kurtosis_yaw_belt,
+                                       skewness_roll_belt,
+                                       skewness_roll_belt.1,
+                                       skewness_yaw_belt,
+                                       max_yaw_belt,
+                                       min_yaw_belt,
+                                       amplitude_yaw_belt,
+                                       kurtosis_roll_arm,
+                                       kurtosis_picth_arm,
+                                       kurtosis_yaw_arm,
+                                       skewness_roll_arm,
+                                       skewness_pitch_arm,
+                                       skewness_yaw_arm,
+                                       kurtosis_roll_dumbbell,
+                                       kurtosis_picth_dumbbell,
+                                       kurtosis_yaw_dumbbell,
+                                       skewness_roll_dumbbell,
+                                       skewness_pitch_dumbbell,
+                                       skewness_yaw_dumbbell,
+                                       max_yaw_dumbbell,
+                                       min_yaw_dumbbell,
+                                       amplitude_yaw_dumbbell,
+                                       kurtosis_roll_forearm,
+                                       kurtosis_picth_forearm,
+                                       kurtosis_roll_forearm,
+                                       kurtosis_yaw_forearm,
+                                       skewness_roll_forearm,
+                                       skewness_pitch_forearm,
+                                       skewness_yaw_forearm,
+                                       max_yaw_forearm,
+                                       min_yaw_forearm,
+                                       amplitude_yaw_forearm
+))
+ptraining <- ptraining[,colSums(is.na(ptraining))==0]
+ptesting <- ptesting[,colSums(is.na(ptesting))==0]
+```
+
+A model was created with train function using the 'random forest' method to explore optimum settings. The optimium settings where with mtry=2.
+Create a random tree model with these parameters:
+```{r, cache=TRUE}
+model <- randomForest(as.factor(classe) ~ ., data=ptraining, mtry=2,importance=TRUE)
+```
+
+For the training partition the error rate and confusion matrix are:
+```{r, echo=FALSE }
+model
+```
+The out-of-band error rate for the model is .76%.
+
+For the testing partition the error rate and confusion matrix are:
+```{r,echo=FALSE}
+results <- predict(model,ptesting)
+confusionMatrix(ptesting$classe,results)
+```
+This resulted an error rate on the testing partition of .51%.
+
+
+Predict the outcomes for the testing data set:
+```{r}
+out <- as.character(predict(model,testing))
+```
+Testing set prediction = `r out`

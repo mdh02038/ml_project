@@ -94,7 +94,7 @@ sum(results==ptraining$classe)
 results <- predict(model,ptesting)
 sum(results!=ptesting$classe)
 sum(results==ptesting$classe)
-
+confusionMatrix(ptesting$classe,results)
 out <- as.character(predict(model,testing))
 
 pml_write_files = function(x){
